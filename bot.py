@@ -20,7 +20,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "9083925993:AAE9ikMA5FfkfUz7bsjNWWOOW65YE0tH8
 logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ================== STYLISH FONTS ==================
+# ================== STYLISH FONTS (FIXED) ==================
 FONT_MAP = {
     'a': '𝘢', 'b': '𝘣', 'c': '𝘤', 'd': '𝘥', 'e': '𝘦', 'f': '𝘧', 'g': '𝘨', 'h': '𝘩', 'i': '𝘪', 'j': '𝘫',
     'k': '𝘬', 'l': '𝘭', 'm': '𝘮', 'n': '𝘯', 'o': '𝘰', 'p': '𝘱', 'q': '𝘲', 'r': '𝘳', 's': '𝘴', 't': '𝘵',
@@ -29,7 +29,10 @@ FONT_MAP = {
     'K': '𝘒', 'L': '𝘓', 'M': '𝘔', 'N': '𝘕', 'O': '𝘖', 'P': '𝘗', 'Q': '𝘘', 'R': '𝘙', 'S': '𝘚', 'T': '𝘛',
     'U': '𝘜', 'V': '𝘝', 'W': '𝘞', 'X': '𝘟', 'Y': '𝘠', 'Z': '𝘡'
 }
-def f_txt(text): return "".join(FONT_MAP.get(c, c) for c in text)
+def f_txt(text): 
+    if not text: return ""
+    return "".join(FONT_MAP.get(c, c) for c in text)
+
 def p_style(text): return f"<code>{text}</code>,"
 
 # ================== DATABASE ==================
@@ -96,32 +99,32 @@ def get_join_keyboard():
     kb = []
     for ch in channels:
         kb.append([InlineKeyboardButton(f"Join {ch[0]}", url=ch[1], style="primary")])
-    kb.append([InlineKeyboardButton("✅ Verify Membership", callback_data="verify_membership", style="success")])
+    kb.append([InlineKeyboardButton(f_txt("VERIFY MEMBERSHIP"), callback_data="verify_membership", style="success")])
     return InlineKeyboardMarkup(kb)
 
 def get_plan_keyboard():
     kb = [
-        [InlineKeyboardButton("💦 15 Rs - 4 MONTH ENTRY", callback_data="plan_15", style="primary")],
-        [InlineKeyboardButton("💦 16 Rs - 9 MONTH ENTRY", callback_data="plan_16", style="primary")],
-        [InlineKeyboardButton("💦 26 Rs - PERMANENT ENTRY 💦", callback_data="plan_26", style="primary")]
+        [InlineKeyboardButton(f_txt("15 Rs - 4 MONTH ENTRY"), callback_data="plan_15", style="primary")],
+        [InlineKeyboardButton(f_txt("16 Rs - 9 MONTH ENTRY"), callback_data="plan_16", style="primary")],
+        [InlineKeyboardButton(f_txt("26 Rs - PERMANENT ENTRY"), callback_data="plan_26", style="primary")]
     ]
     return InlineKeyboardMarkup(kb)
 
 def get_qr_keyboard():
     kb = [
-        [InlineKeyboardButton("✅ I Have Paid", callback_data="paid", style="primary"), InlineKeyboardButton("❌ Cancel", callback_data="cancel_pay", style="danger")]
+        [InlineKeyboardButton(f_txt("I HAVE PAID"), callback_data="paid", style="primary"), InlineKeyboardButton(f_txt("CANCEL"), callback_data="cancel_pay", style="danger")]
     ]
     return InlineKeyboardMarkup(kb)
 
 def get_approve_keyboard(user_id, req_id):
     kb = [
-        [InlineKeyboardButton("✅ Approve", callback_data=f"approve_{user_id}_{req_id}", style="success"), InlineKeyboardButton("❌ Disapprove", callback_data=f"disapprove_{user_id}_{req_id}", style="danger")]
+        [InlineKeyboardButton(f_txt("APPROVE"), callback_data=f"approve_{user_id}_{req_id}", style="success"), InlineKeyboardButton(f_txt("DISAPPROVE"), callback_data=f"disapprove_{user_id}_{req_id}", style="danger")]
     ]
     return InlineKeyboardMarkup(kb)
 
 def get_unban_keyboard():
     kb = [
-        [InlineKeyboardButton("💰 Pay 19rs to Unban", callback_data="unban_pay", style="primary")]
+        [InlineKeyboardButton(f_txt("PAY 19RS TO UNBAN"), callback_data="unban_pay", style="primary")]
     ]
     return InlineKeyboardMarkup(kb)
 
@@ -133,7 +136,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     res = db_exec("SELECT is_banned FROM users WHERE user_id=?", (user_id,))
     if res and res[0][0] == 1:
         return await update.message.reply_text(
-            f"🚫 <b>{f_txt('YOU ARE BANNED')}</b>\n\nContact admin or pay 19rs to unban.",
+            f"🚫 <b>{f_txt('YOU ARE BANNED')}</b>\n\n{f_txt('Contact admin or pay 19rs to unban')}",
             reply_markup=get_unban_keyboard(),
             parse_mode="HTML"
         )
@@ -145,11 +148,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not res:
         db_exec("INSERT INTO users (user_id, username) VALUES (?,?)", (user_id, username))
         for admin in get_all_admins():
-            try: await context.bot.send_message(admin, f"🆕 <b>NEW USER</b>\nID: <code>{user_id}</code>\n@{username}", parse_mode="HTML")
+            try: await context.bot.send_message(admin, f"🆕 <b>{f_txt('NEW USER')}</b>\nID: <code>{user_id}</code>\n@{username}", parse_mode="HTML")
             except: pass
 
-    # WELCOME MESSAGE (Photo/Video/Text)
-    welcome_text = f"👋 <b>{f_txt('WELCOME TO PAID POMPOM BOT')}</b>\n\nPlease join the group to continue:"
+    welcome_text = f"👋 <b>{f_txt('WELCOME TO PAID POMPOM BOT')}</b>\n\n{f_txt('Please join the group to continue')}:"
     
     welcome_photo = get_config("welcome_photo")
     welcome_video = get_config("welcome_video")
@@ -168,19 +170,19 @@ async def verify_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     db_exec("UPDATE users SET joined=1 WHERE user_id=?", (user_id,))
     
-    # UPDATED PRICE LIST
+    # FIXED STYLISH PRICE LIST
     plan_text = (
         f"✨⭐ <b>{f_txt('WELCOME TO POOM GROUP')}</b> ⭐✨\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"💰 <b>{f_txt('PRICE LIST')} 👇🏻👇🏻</b>\n"
         f"━━━━━━━━━━━━━━━━━━\n\n"
-        f"⭐ 15 Rs - 4 MONTH ENTRY\n"
-        f"⭐ 16 Rs - 9 MONTH ENTRY\n"
-        f"💦 26 Rs - PERMANENT ENTRY 💦\n\n"
+        f"⭐ {f_txt('15 Rs - 4 MONTH ENTRY')}\n"
+        f"⭐ {f_txt('16 Rs - 9 MONTH ENTRY')}\n"
+        f"💦 {f_txt('26 Rs - PERMANENT ENTRY')} 💦\n\n"
         f"━━━━━━━━━━━━━━━━━━\n"
-        f"✅ INSTANT ENTRY\n"
-        f"✅ FULL TRUSTED\n"
-        f"🔥 JOIN NOW 🔥"
+        f"✅ {f_txt('INSTANT ENTRY')}\n"
+        f"✅ {f_txt('FULL TRUSTED')}\n"
+        f"🔥 {f_txt('JOIN NOW')} 🔥"
     )
     
     plan_photo = get_config("plan_photo")
@@ -197,7 +199,7 @@ async def plan_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     upi_id = get_config("upi_id")
     if not upi_id:
-        return await query.message.reply_text("❌ Admin has not set UPI ID yet. Please contact admin.")
+        return await query.message.reply_text(f"❌ {f_txt('Admin has not set UPI ID yet')}")
 
     amount = "15" if plan == "15" else "16" if plan == "16" else "26"
     upi_url = f"upi://pay?pa={upi_id}&pn=Payment&am={amount}&cu=INR"
@@ -212,7 +214,7 @@ async def plan_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     img.save(bio, 'PNG')
     bio.seek(0)
     
-    qr_caption = f"📸 <b>{f_txt('SCAN TO PAY')}</b>\n\nAmount: <b>{amount} Rs</b>\nUPI: <code>{upi_id}</code>"
+    qr_caption = f"📸 <b>{f_txt('SCAN TO PAY')}</b>\n\n{f_txt('Amount')}: <b>{amount} Rs</b>\nUPI: <code>{upi_id}</code>"
     await query.message.reply_photo(photo=InputFile(bio, 'qr.png'), caption=qr_caption, reply_markup=get_qr_keyboard(), parse_mode="HTML")
 
 async def qr_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -225,14 +227,14 @@ async def qr_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     if query.data == "paid":
         context.user_data['waiting_screenshot'] = True
-        await query.message.reply_text("📸 Please send your Payment Screenshot now.")
+        await query.message.reply_text(f"📸 {f_txt('Please send your Payment Screenshot now')}")
         
     if query.data == "unban_pay":
         user_id = query.from_user.id
         context.user_data['unban_waiting'] = True
         upi_id = get_config("upi_id")
         if not upi_id:
-            return await query.message.reply_text("❌ Admin has not set UPI ID yet.")
+            return await query.message.reply_text(f"❌ {f_txt('Admin has not set UPI ID yet')}")
             
         upi_url = f"upi://pay?pa={upi_id}&pn=Payment&am=19&cu=INR"
         qr = qrcode.QRCode(box_size=10, border=4)
@@ -245,7 +247,7 @@ async def qr_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         img.save(bio, 'PNG')
         bio.seek(0)
         
-        qr_caption = f"📸 <b>{f_txt('SCAN TO PAY FOR UNBAN')}</b>\n\nAmount: <b>19 Rs</b>\nUPI: <code>{upi_id}</code>"
+        qr_caption = f"📸 <b>{f_txt('SCAN TO PAY FOR UNBAN')}</b>\n\n{f_txt('Amount')}: <b>19 Rs</b>\nUPI: <code>{upi_id}</code>"
         await query.message.reply_photo(photo=InputFile(bio, 'qr.png'), caption=qr_caption, reply_markup=get_qr_keyboard(), parse_mode="HTML")
 
 async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -259,9 +261,9 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         req_id = db_exec("SELECT last_insert_rowid()")[0][0]
         
         context.user_data['waiting_screenshot'] = False
-        await update.message.reply_text("⏳ Screenshot sent for verification. Please wait for approval.")
+        await update.message.reply_text(f"⏳ {f_txt('Screenshot sent for verification')}")
         
-        admin_text = f"🔔 <b>NEW PAYMENT PROOF</b>\n\nUser: @{username} (<code>{user_id}</code>)\nPlan: {plan} Rs"
+        admin_text = f"🔔 <b>{f_txt('NEW PAYMENT PROOF')}</b>\n\n{f_txt('User')}: @{username} (<code>{user_id}</code>)\n{f_txt('Plan')}: {plan} Rs"
         for admin in get_all_admins():
             try: await context.bot.send_photo(admin, photo=photo, caption=admin_text, reply_markup=get_approve_keyboard(user_id, req_id), parse_mode="HTML")
             except: pass
@@ -273,9 +275,9 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         db_exec("INSERT INTO requests (user_id, username, plan, screenshot, type) VALUES (?,?,?,?,'Unban')", (user_id, username, "19", photo))
         context.user_data['unban_waiting'] = False
-        await update.message.reply_text("⏳ Unban request sent. Admin will review it.")
+        await update.message.reply_text(f"⏳ {f_txt('Unban request sent')}")
         
-        admin_text = f"🔔 <b>UNBAN PAYMENT PROOF</b>\n\nUser: @{username} (<code>{user_id}</code>)\nPlan: 19 Rs Unban"
+        admin_text = f"🔔 <b>{f_txt('UNBAN PAYMENT PROOF')}</b>\n\n{f_txt('User')}: @{username} (<code>{user_id}</code>)\n{f_txt('Plan')}: 19 Rs Unban"
         for admin in get_all_admins():
             try: await context.bot.send_photo(admin, photo=photo, caption=admin_text, reply_markup=get_approve_keyboard(user_id, 0), parse_mode="HTML")
             except: pass
@@ -288,15 +290,15 @@ async def approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action, user_id, req_id = data[0], int(data[1]), int(data[2])
     
     if action == "approve":
-        await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ <b>APPROVED by Admin</b>", parse_mode="HTML")
+        await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ <b>{f_txt('APPROVED')}</b>", parse_mode="HTML")
         if req_id != 0:
             db_exec("UPDATE requests SET status='Approved' WHERE id=?", (req_id,))
-        await context.bot.send_message(user_id, "🎉 <b>Payment Approved!</b>\n\nYour access has been granted.")
+        await context.bot.send_message(user_id, f"🎉 <b>{f_txt('Payment Approved!')}</b>")
     elif action == "disapprove":
-        await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ <b>REJECTED by Admin</b>", parse_mode="HTML")
+        await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ <b>{f_txt('REJECTED')}</b>", parse_mode="HTML")
         if req_id != 0:
             db_exec("UPDATE requests SET status='Rejected' WHERE id=?", (req_id,))
-        await context.bot.send_message(user_id, "❌ Payment was rejected. Please contact admin.")
+        await context.bot.send_message(user_id, f"❌ {f_txt('Payment was rejected')}")
 
 # ================== OWNER PANEL ==================
 async def owner_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -304,12 +306,12 @@ async def owner_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if uid not in get_all_admins(): return
     
     kb = [
-        [InlineKeyboardButton("➕ Add Group", callback_data="admin_add_ch", style="primary"), InlineKeyboardButton("➖ Remove Group", callback_data="admin_rem_ch", style="danger")],
-        [InlineKeyboardButton("💳 Set UPI ID", callback_data="admin_set_upi", style="primary"), InlineKeyboardButton("🖼 Set Welcome Pic", callback_data="admin_set_welcome", style="primary")],
-        [InlineKeyboardButton("🎬 Set Welcome Vid", callback_data="admin_set_wvid", style="primary"), InlineKeyboardButton("🖼 Set Plan Pic", callback_data="admin_set_planpic", style="primary")],
-        [InlineKeyboardButton("📊 Total Users", callback_data="admin_members", style="success"), InlineKeyboardButton("📸 Total Payments", callback_data="admin_payments", style="success")],
-        [InlineKeyboardButton("🚫 Ban User", callback_data="admin_ban", style="danger"), InlineKeyboardButton("✅ Unban User", callback_data="admin_unban", style="success")],
-        [InlineKeyboardButton("👑 Add Admin", callback_data="admin_add", style="primary")]
+        [InlineKeyboardButton(f_txt("Add Group"), callback_data="admin_add_ch", style="primary"), InlineKeyboardButton(f_txt("Remove Group"), callback_data="admin_rem_ch", style="danger")],
+        [InlineKeyboardButton(f_txt("Set UPI ID"), callback_data="admin_set_upi", style="primary"), InlineKeyboardButton(f_txt("Set Welcome Pic"), callback_data="admin_set_welcome", style="primary")],
+        [InlineKeyboardButton(f_txt("Set Welcome Vid"), callback_data="admin_set_wvid", style="primary"), InlineKeyboardButton(f_txt("Set Plan Pic"), callback_data="admin_set_planpic", style="primary")],
+        [InlineKeyboardButton(f_txt("Total Users"), callback_data="admin_members", style="success"), InlineKeyboardButton(f_txt("Total Payments"), callback_data="admin_payments", style="success")],
+        [InlineKeyboardButton(f_txt("Ban User"), callback_data="admin_ban", style="danger"), InlineKeyboardButton(f_txt("Unban User"), callback_data="admin_unban", style="success")],
+        [InlineKeyboardButton(f_txt("Add Admin"), callback_data="admin_add", style="primary")]
     ]
     await update.message.reply_text(f"<b>👑 {f_txt('OWNER PANEL')}</b>", reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
@@ -322,49 +324,49 @@ async def admin_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if uid not in get_all_admins(): return await query.answer("Unauthorized", show_alert=True)
     
     if data == "admin_add_ch":
-        await query.edit_message_text("🔗 Send Group Link, ID, and Name separated by comma.\n<code>https://t.me/test, -1001234567890, My Group</code>", parse_mode="HTML")
+        await query.edit_message_text(f"🔗 {f_txt('Send Group Link, ID, and Name separated by comma')}\n<code>https://t.me/test, -1001234567890, My Group</code>", parse_mode="HTML")
         user_states[uid] = 'add_channel'
     elif data == "admin_set_upi":
-        await query.edit_message_text("💳 Send your UPI ID (e.g. name@upi):")
+        await query.edit_message_text(f"💳 {f_txt('Send your UPI ID')}:")
         user_states[uid] = 'set_upi'
     elif data == "admin_set_welcome":
-        await query.edit_message_text("🖼 Send the Welcome Photo:")
+        await query.edit_message_text(f"🖼 {f_txt('Send the Welcome Photo')}:")
         user_states[uid] = 'set_welcome'
     elif data == "admin_set_wvid":
-        await query.edit_message_text("🎬 Send the Welcome Video:")
+        await query.edit_message_text(f"🎬 {f_txt('Send the Welcome Video')}:")
         user_states[uid] = 'set_wvid'
     elif data == "admin_set_planpic":
-        await query.edit_message_text("🖼 Send the 2nd Photo (For Price List):")
+        await query.edit_message_text(f"🖼 {f_txt('Send the 2nd Photo (For Price List)')}:")
         user_states[uid] = 'set_planpic'
     elif data == "admin_rem_ch":
         channels = db_exec("SELECT id, name FROM channels")
-        if not channels: return await query.edit_message_text("❌ No channels added.")
-        kb = [[InlineKeyboardButton(f"❌ Delete {name}", callback_data=f"delch_{ch_id}", style="danger")] for ch_id, name in channels]
-        await query.edit_message_text("Select channel to delete:", reply_markup=InlineKeyboardMarkup(kb))
+        if not channels: return await query.edit_message_text(f"❌ {f_txt('No channels added')}")
+        kb = [[InlineKeyboardButton(f"❌ {f_txt('Delete')} {name}", callback_data=f"delch_{ch_id}", style="danger")] for ch_id, name in channels]
+        await query.edit_message_text(f"{f_txt('Select channel to delete')}:", reply_markup=InlineKeyboardMarkup(kb))
     elif data.startswith("delch_"):
         db_exec("DELETE FROM channels WHERE id=?", (int(data.split("_")[1]),))
-        await query.edit_message_text("✅ Channel removed.")
+        await query.edit_message_text(f"✅ {f_txt('Channel removed')}")
     elif data == "admin_members":
         users = db_exec("SELECT user_id, username FROM users")
-        text = f"👥 <b>Total Users: {len(users)}</b>\n\n"
+        text = f"👥 <b>{f_txt('Total Users')}: {len(users)}</b>\n\n"
         for u in users[:20]: text += f"🆔 <code>{u[0]}</code> | @{u[1]}\n"
         await query.edit_message_text(text, parse_mode="HTML")
     elif data == "admin_payments":
         payments = db_exec("SELECT user_id, username, plan, screenshot, type FROM requests ORDER BY id DESC LIMIT 20")
-        if not payments: return await query.edit_message_text("❌ No payments found.")
-        await query.edit_message_text("📸 Sending all payment proofs...")
+        if not payments: return await query.edit_message_text(f"❌ {f_txt('No payments found')}")
+        await query.edit_message_text(f"📸 {f_txt('Sending all payment proofs...')}")
         for p in payments:
-            txt = f"👤 @{p[1]} (<code>{p[0]}</code>)\nPlan: {p[2]} Rs | Type: {p[4]}"
+            txt = f"👤 @{p[1]} (<code>{p[0]}</code>)\n{f_txt('Plan')}: {p[2]} Rs | {f_txt('Type')}: {p[4]}"
             try: await context.bot.send_photo(uid, photo=p[3], caption=txt, parse_mode="HTML")
             except: pass
     elif data == "admin_ban":
-        await query.edit_message_text("🚫 Send User ID to BAN:")
+        await query.edit_message_text(f"🚫 {f_txt('Send User ID to BAN')}:")
         user_states[uid] = 'ban_user'
     elif data == "admin_unban":
-        await query.edit_message_text("✅ Send User ID to UNBAN:")
+        await query.edit_message_text(f"✅ {f_txt('Send User ID to UNBAN')}:")
         user_states[uid] = 'unban_user'
     elif data == "admin_add":
-        await query.edit_message_text("👑 Send User ID to make Admin:")
+        await query.edit_message_text(f"👑 {f_txt('Send User ID to make Admin')}:")
         user_states[uid] = 'add_admin'
 
 async def admin_state_router(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -379,7 +381,7 @@ async def admin_state_router(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parts = [p.strip() for p in text.split(",")]
             db_exec("INSERT INTO channels (link, channel_id, name) VALUES (?,?,?)", (parts[0], parts[1], parts[2]))
             await update.message.reply_text(f"✅ {p_style('Group Added')}", parse_mode="HTML")
-        except: await update.message.reply_text("❌ Invalid format.")
+        except: await update.message.reply_text(f"❌ {f_txt('Invalid format')}")
         user_states[uid] = None
         
     elif state == 'set_upi':
@@ -411,11 +413,11 @@ async def handle_photos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if state == 'set_welcome' and update.message.photo:
         set_config("welcome_photo", update.message.photo[-1].file_id)
-        await update.message.reply_text("✅ Welcome Photo Saved!")
+        await update.message.reply_text(f"✅ {f_txt('Welcome Photo Saved')}")
         user_states[uid] = None
     elif state == 'set_planpic' and update.message.photo:
         set_config("plan_photo", update.message.photo[-1].file_id)
-        await update.message.reply_text("✅ Plan Photo Saved!")
+        await update.message.reply_text(f"✅ {f_txt('Plan Photo Saved')}")
         user_states[uid] = None
     else:
         await handle_screenshot(update, context)
@@ -424,7 +426,7 @@ async def handle_videos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     if user_states.get(uid) == 'set_wvid' and update.message.video:
         set_config("welcome_video", update.message.video.file_id)
-        await update.message.reply_text("✅ Welcome Video Saved!")
+        await update.message.reply_text(f"✅ {f_txt('Welcome Video Saved')}")
         user_states[uid] = None
 
 # ================== MAIN ==================
