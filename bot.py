@@ -22,12 +22,12 @@ logger = logging.getLogger(__name__)
 
 # ================== STYLISH FONTS ==================
 FONT_MAP = {
-    'a': 'ａ', 'b': 'ｂ', 'c': 'ｃ', 'd': 'ｄ', 'e': 'ｅ', 'f': 'ｆ', 'g': 'ｇ', 'h': 'ｈ', 'i': 'ｉ', 'j': 'ｊ',
-    'k': 'ｋ', 'l': 'ｌ', 'm': 'ｍ', 'n': 'ｎ', 'o': 'ｏ', 'p': 'ｐ', 'q': 'ｑ', 'r': 'ｒ', 's': 'ｓ', 't': 'ｔ',
-    'u': 'ｕ', 'v': 'ｖ', 'w': 'ｗ', 'x': 'ｘ', 'y': 'ｙ', 'z': 'ｚ',
-    'A': 'Ａ', 'B': 'Ｂ', 'C': 'Ｃ', 'D': 'Ｄ', 'E': 'Ｅ', 'F': 'Ｆ', 'G': 'Ｇ', 'H': 'Ｈ', 'I': 'Ｉ', 'J': 'Ｊ',
-    'K': 'Ｋ', 'L': 'Ｌ', 'M': 'Ｍ', 'N': 'Ｎ', 'O': 'Ｏ', 'P': 'Ｐ', 'Q': 'Ｑ', 'R': 'Ｒ', 'S': 'Ｓ', 'T': 'Ｔ',
-    'U': 'Ｕ', 'V': 'Ｖ', 'W': 'Ｗ', 'X': 'Ｘ', 'Y': 'Ｙ', 'Z': 'Ｚ'
+    'a': '𝘢', 'b': '𝘣', 'c': '𝘤', 'd': '𝘥', 'e': '𝘦', 'f': '𝘧', 'g': '𝘨', 'h': '𝘩', 'i': '𝘪', 'j': '𝘫',
+    'k': '𝘬', 'l': '𝘭', 'm': '𝘮', 'n': '𝘯', 'o': '𝘰', 'p': '𝘱', 'q': '𝘲', 'r': '𝘳', 's': '𝘴', 't': '𝘵',
+    'u': '𝘶', 'v': '𝘷', 'w': '𝘸', 'x': '𝘹', 'y': '𝘺', 'z': '𝘻',
+    'A': '𝘈', 'B': '𝘉', 'C': '𝘊', 'D': '𝘋', 'E': '𝘌', 'F': '𝘍', 'G': '𝘎', 'H': '𝘏', 'I': '𝘐', 'J': '𝘑',
+    'K': '𝘒', 'L': '𝘓', 'M': '𝘔', 'N': '𝘕', 'O': '𝘖', 'P': '𝘗', 'Q': '𝘘', 'R': '𝘙', 'S': '𝘚', 'T': '𝘛',
+    'U': '𝘜', 'V': '𝘝', 'W': '𝘞', 'X': '𝘟', 'Y': '𝘠', 'Z': '𝘡'
 }
 def f_txt(text): return "".join(FONT_MAP.get(c, c) for c in text)
 def p_style(text): return f"<code>{text}</code>,"
@@ -39,7 +39,7 @@ def init_db():
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     c = conn.cursor()
     c.execute("""CREATE TABLE IF NOT EXISTS users (
-        user_id INTEGER PRIMARY KEY, username TEXT, joined INTEGER DEFAULT 0
+        user_id INTEGER PRIMARY KEY, username TEXT, joined INTEGER DEFAULT 0, is_banned INTEGER DEFAULT 0
     )""")
     c.execute("""CREATE TABLE IF NOT EXISTS channels (
         id INTEGER PRIMARY KEY AUTOINCREMENT, link TEXT, channel_id TEXT, name TEXT
@@ -49,7 +49,7 @@ def init_db():
     )""")
     c.execute("CREATE TABLE IF NOT EXISTS admins (user_id INTEGER PRIMARY KEY)")
     c.execute("""CREATE TABLE IF NOT EXISTS requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT, plan TEXT, screenshot TEXT, status TEXT DEFAULT 'Pending'
+        id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, username TEXT, plan TEXT, screenshot TEXT, type TEXT DEFAULT 'Payment'
     )""")
     conn.commit()
     conn.close()
@@ -101,9 +101,9 @@ def get_join_keyboard():
 
 def get_plan_keyboard():
     kb = [
-        [InlineKeyboardButton("15.64 Rs MONTH", callback_data="plan_15", style="primary")],
-        [InlineKeyboardButton("17.89 Rs MONTH", callback_data="plan_17", style="primary")],
-        [InlineKeyboardButton("👑 PERMANENT 25Rs 👑", callback_data="plan_25", style="primary")]
+        [InlineKeyboardButton("💦 15 Rs - 4 MONTH ENTRY", callback_data="plan_15", style="primary")],
+        [InlineKeyboardButton("💦 16 Rs - 9 MONTH ENTRY", callback_data="plan_16", style="primary")],
+        [InlineKeyboardButton("💦 26 Rs - PERMANENT ENTRY 💦", callback_data="plan_26", style="primary")]
     ]
     return InlineKeyboardMarkup(kb)
 
@@ -119,23 +119,36 @@ def get_approve_keyboard(user_id, req_id):
     ]
     return InlineKeyboardMarkup(kb)
 
+def get_unban_keyboard():
+    kb = [
+        [InlineKeyboardButton("💰 Pay 19rs to Unban", callback_data="unban_pay", style="primary")]
+    ]
+    return InlineKeyboardMarkup(kb)
+
 # ================== BOT HANDLERS ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     username = update.effective_user.username or "No Username"
     
+    res = db_exec("SELECT is_banned FROM users WHERE user_id=?", (user_id,))
+    if res and res[0][0] == 1:
+        return await update.message.reply_text(
+            f"🚫 <b>{f_txt('YOU ARE BANNED')}</b>\n\nContact admin or pay 19rs to unban.",
+            reply_markup=get_unban_keyboard(),
+            parse_mode="HTML"
+        )
+    
     total_admins = db_exec("SELECT COUNT(*) FROM admins")[0][0]
     if total_admins == 0:
         db_exec("INSERT OR IGNORE INTO admins (user_id) VALUES (?)", (user_id,))
 
-    res = db_exec("SELECT user_id FROM users WHERE user_id=?", (user_id,))
     if not res:
         db_exec("INSERT INTO users (user_id, username) VALUES (?,?)", (user_id, username))
         for admin in get_all_admins():
             try: await context.bot.send_message(admin, f"🆕 <b>NEW USER</b>\nID: <code>{user_id}</code>\n@{username}", parse_mode="HTML")
             except: pass
 
-    # WELCOME MESSAGE
+    # WELCOME MESSAGE (Photo/Video/Text)
     welcome_text = f"👋 <b>{f_txt('WELCOME TO PAID POMPOM BOT')}</b>\n\nPlease join the group to continue:"
     
     welcome_photo = get_config("welcome_photo")
@@ -153,16 +166,21 @@ async def verify_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     
-    # BYPASS: Jo bhi button dabaye, seedha verify ho jayega (no check)
     db_exec("UPDATE users SET joined=1 WHERE user_id=?", (user_id,))
     
-    # Price List
+    # UPDATED PRICE LIST
     plan_text = (
-        f"💦 <b>{f_txt('WELCOME TO POOM GROUP')}</b> 💦\n\n"
-        f"💰 <b>{f_txt('PRICE LIST')}</b> 💰\n\n"
-        f"➊ .. 15.64 Rs MONTH\n"
-        f"➎ .. 17.89 Rs MONTH\n\n"
-        f"👑 <b>PERMANENT .. 25Rs</b> 👑"
+        f"✨⭐ <b>{f_txt('WELCOME TO POOM GROUP')}</b> ⭐✨\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"💰 <b>{f_txt('PRICE LIST')} 👇🏻👇🏻</b>\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        f"⭐ 15 Rs - 4 MONTH ENTRY\n"
+        f"⭐ 16 Rs - 9 MONTH ENTRY\n"
+        f"💦 26 Rs - PERMANENT ENTRY 💦\n\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"✅ INSTANT ENTRY\n"
+        f"✅ FULL TRUSTED\n"
+        f"🔥 JOIN NOW 🔥"
     )
     
     plan_photo = get_config("plan_photo")
@@ -181,7 +199,7 @@ async def plan_selected(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not upi_id:
         return await query.message.reply_text("❌ Admin has not set UPI ID yet. Please contact admin.")
 
-    amount = "15.64" if plan == "15" else "17.89" if plan == "17" else "25"
+    amount = "15" if plan == "15" else "16" if plan == "16" else "26"
     upi_url = f"upi://pay?pa={upi_id}&pn=Payment&am={amount}&cu=INR"
     
     qr = qrcode.QRCode(box_size=10, border=4)
@@ -208,25 +226,59 @@ async def qr_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "paid":
         context.user_data['waiting_screenshot'] = True
         await query.message.reply_text("📸 Please send your Payment Screenshot now.")
+        
+    if query.data == "unban_pay":
+        user_id = query.from_user.id
+        context.user_data['unban_waiting'] = True
+        upi_id = get_config("upi_id")
+        if not upi_id:
+            return await query.message.reply_text("❌ Admin has not set UPI ID yet.")
+            
+        upi_url = f"upi://pay?pa={upi_id}&pn=Payment&am=19&cu=INR"
+        qr = qrcode.QRCode(box_size=10, border=4)
+        qr.add_data(upi_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        bio = BytesIO()
+        bio.name = 'qr.png'
+        img.save(bio, 'PNG')
+        bio.seek(0)
+        
+        qr_caption = f"📸 <b>{f_txt('SCAN TO PAY FOR UNBAN')}</b>\n\nAmount: <b>19 Rs</b>\nUPI: <code>{upi_id}</code>"
+        await query.message.reply_photo(photo=InputFile(bio, 'qr.png'), caption=qr_caption, reply_markup=get_qr_keyboard(), parse_mode="HTML")
 
 async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.user_data.get('waiting_screenshot'): return
-    
-    user_id = update.effective_user.id
-    username = update.effective_user.username or "No Username"
-    photo = update.message.photo[-1].file_id
-    plan = context.user_data.get('plan', 'Unknown')
-    
-    db_exec("INSERT INTO requests (user_id, username, plan, screenshot) VALUES (?,?,?,?)", (user_id, username, plan, photo))
-    req_id = db_exec("SELECT last_insert_rowid()")[0][0]
-    
-    context.user_data['waiting_screenshot'] = False
-    await update.message.reply_text("⏳ Screenshot sent for verification. Please wait for approval.")
-    
-    admin_text = f"🔔 <b>NEW PAYMENT PROOF</b>\n\nUser: @{username} (<code>{user_id}</code>)\nPlan: {plan} Rs"
-    for admin in get_all_admins():
-        try: await context.bot.send_photo(admin, photo=photo, caption=admin_text, reply_markup=get_approve_keyboard(user_id, req_id), parse_mode="HTML")
-        except Exception as e: logger.error(f"Failed to send to admin {admin}: {e}")
+    if context.user_data.get('waiting_screenshot'):
+        user_id = update.effective_user.id
+        username = update.effective_user.username or "No Username"
+        photo = update.message.photo[-1].file_id
+        plan = context.user_data.get('plan', 'Unknown')
+        
+        db_exec("INSERT INTO requests (user_id, username, plan, screenshot, type) VALUES (?,?,?,?,'Payment')", (user_id, username, plan, photo))
+        req_id = db_exec("SELECT last_insert_rowid()")[0][0]
+        
+        context.user_data['waiting_screenshot'] = False
+        await update.message.reply_text("⏳ Screenshot sent for verification. Please wait for approval.")
+        
+        admin_text = f"🔔 <b>NEW PAYMENT PROOF</b>\n\nUser: @{username} (<code>{user_id}</code>)\nPlan: {plan} Rs"
+        for admin in get_all_admins():
+            try: await context.bot.send_photo(admin, photo=photo, caption=admin_text, reply_markup=get_approve_keyboard(user_id, req_id), parse_mode="HTML")
+            except: pass
+            
+    elif context.user_data.get('unban_waiting'):
+        user_id = update.effective_user.id
+        username = update.effective_user.username or "No Username"
+        photo = update.message.photo[-1].file_id
+        
+        db_exec("INSERT INTO requests (user_id, username, plan, screenshot, type) VALUES (?,?,?,?,'Unban')", (user_id, username, "19", photo))
+        context.user_data['unban_waiting'] = False
+        await update.message.reply_text("⏳ Unban request sent. Admin will review it.")
+        
+        admin_text = f"🔔 <b>UNBAN PAYMENT PROOF</b>\n\nUser: @{username} (<code>{user_id}</code>)\nPlan: 19 Rs Unban"
+        for admin in get_all_admins():
+            try: await context.bot.send_photo(admin, photo=photo, caption=admin_text, reply_markup=get_approve_keyboard(user_id, 0), parse_mode="HTML")
+            except: pass
 
 async def approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -237,11 +289,13 @@ async def approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if action == "approve":
         await query.edit_message_caption(caption=f"{query.message.caption}\n\n✅ <b>APPROVED by Admin</b>", parse_mode="HTML")
-        db_exec("UPDATE requests SET status='Approved' WHERE id=?", (req_id,))
+        if req_id != 0:
+            db_exec("UPDATE requests SET status='Approved' WHERE id=?", (req_id,))
         await context.bot.send_message(user_id, "🎉 <b>Payment Approved!</b>\n\nYour access has been granted.")
     elif action == "disapprove":
         await query.edit_message_caption(caption=f"{query.message.caption}\n\n❌ <b>REJECTED by Admin</b>", parse_mode="HTML")
-        db_exec("UPDATE requests SET status='Rejected' WHERE id=?", (req_id,))
+        if req_id != 0:
+            db_exec("UPDATE requests SET status='Rejected' WHERE id=?", (req_id,))
         await context.bot.send_message(user_id, "❌ Payment was rejected. Please contact admin.")
 
 # ================== OWNER PANEL ==================
@@ -253,7 +307,9 @@ async def owner_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("➕ Add Group", callback_data="admin_add_ch", style="primary"), InlineKeyboardButton("➖ Remove Group", callback_data="admin_rem_ch", style="danger")],
         [InlineKeyboardButton("💳 Set UPI ID", callback_data="admin_set_upi", style="primary"), InlineKeyboardButton("🖼 Set Welcome Pic", callback_data="admin_set_welcome", style="primary")],
         [InlineKeyboardButton("🎬 Set Welcome Vid", callback_data="admin_set_wvid", style="primary"), InlineKeyboardButton("🖼 Set Plan Pic", callback_data="admin_set_planpic", style="primary")],
-        [InlineKeyboardButton("📊 Total Users", callback_data="admin_members", style="success"), InlineKeyboardButton("👑 Add Admin", callback_data="admin_add", style="primary")]
+        [InlineKeyboardButton("📊 Total Users", callback_data="admin_members", style="success"), InlineKeyboardButton("📸 Total Payments", callback_data="admin_payments", style="success")],
+        [InlineKeyboardButton("🚫 Ban User", callback_data="admin_ban", style="danger"), InlineKeyboardButton("✅ Unban User", callback_data="admin_unban", style="success")],
+        [InlineKeyboardButton("👑 Add Admin", callback_data="admin_add", style="primary")]
     ]
     await update.message.reply_text(f"<b>👑 {f_txt('OWNER PANEL')}</b>", reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML")
 
@@ -293,6 +349,20 @@ async def admin_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = f"👥 <b>Total Users: {len(users)}</b>\n\n"
         for u in users[:20]: text += f"🆔 <code>{u[0]}</code> | @{u[1]}\n"
         await query.edit_message_text(text, parse_mode="HTML")
+    elif data == "admin_payments":
+        payments = db_exec("SELECT user_id, username, plan, screenshot, type FROM requests ORDER BY id DESC LIMIT 20")
+        if not payments: return await query.edit_message_text("❌ No payments found.")
+        await query.edit_message_text("📸 Sending all payment proofs...")
+        for p in payments:
+            txt = f"👤 @{p[1]} (<code>{p[0]}</code>)\nPlan: {p[2]} Rs | Type: {p[4]}"
+            try: await context.bot.send_photo(uid, photo=p[3], caption=txt, parse_mode="HTML")
+            except: pass
+    elif data == "admin_ban":
+        await query.edit_message_text("🚫 Send User ID to BAN:")
+        user_states[uid] = 'ban_user'
+    elif data == "admin_unban":
+        await query.edit_message_text("✅ Send User ID to UNBAN:")
+        user_states[uid] = 'unban_user'
     elif data == "admin_add":
         await query.edit_message_text("👑 Send User ID to make Admin:")
         user_states[uid] = 'add_admin'
@@ -315,6 +385,18 @@ async def admin_state_router(update: Update, context: ContextTypes.DEFAULT_TYPE)
     elif state == 'set_upi':
         set_config("upi_id", text)
         await update.message.reply_text(f"✅ {p_style('UPI ID Set')}", parse_mode="HTML")
+        user_states[uid] = None
+        
+    elif state == 'ban_user':
+        if text.isdigit():
+            db_exec("UPDATE users SET is_banned=1 WHERE user_id=?", (int(text),))
+            await update.message.reply_text(f"✅ {p_style('User Banned')}", parse_mode="HTML")
+        user_states[uid] = None
+        
+    elif state == 'unban_user':
+        if text.isdigit():
+            db_exec("UPDATE users SET is_banned=0 WHERE user_id=?", (int(text),))
+            await update.message.reply_text(f"✅ {p_style('User Unbanned')}", parse_mode="HTML")
         user_states[uid] = None
         
     elif state == 'add_admin':
@@ -355,7 +437,7 @@ def main():
     
     app_bot.add_handler(CallbackQueryHandler(verify_membership, pattern="^verify_membership$"))
     app_bot.add_handler(CallbackQueryHandler(plan_selected, pattern="^plan_"))
-    app_bot.add_handler(CallbackQueryHandler(qr_callback, pattern="^(paid|cancel_pay)$"))
+    app_bot.add_handler(CallbackQueryHandler(qr_callback, pattern="^(paid|cancel_pay|unban_pay)$"))
     app_bot.add_handler(CallbackQueryHandler(approve_callback, pattern="^(approve|disapprove)_"))
     app_bot.add_handler(CallbackQueryHandler(admin_callbacks, pattern="^(admin_|delch_)"))
     
